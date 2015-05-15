@@ -36,6 +36,8 @@ import org.jmesa.worksheet.state.WorksheetState;
  */
 public class WorksheetUpdater {
 		
+	protected static final Object LOCK_OBJECT = new Object();
+	
     protected static String UNIQUE_PROPERTIES = "up_";
     protected static String COLUMN_PROPERTY = "cp_";
     protected static String ORIGINAL_VALUE = "ov_";
@@ -51,14 +53,21 @@ public class WorksheetUpdater {
 
     public String update(Messages messages, WebContext webContext) {
 		
-        Worksheet worksheet = getWorksheet(messages, webContext);
-        WorksheetRow worksheetRow = getWorksheetRow(worksheet, webContext);
-
-        WorksheetColumn worksheetColumn = getWorksheetColumn(worksheetRow, webContext);
-        String columnStatus = validateWorksheet(worksheet, worksheetRow, worksheetColumn, webContext.getParameter(ERROR_MESSAGE));
-
-        // for distributed deployment (e.g. GAE)
-        getWorksheetState(webContext).persistWorksheet(worksheet);
+    	String columnStatus = null;
+    	Worksheet worksheet = null;
+    	
+    	synchronized (LOCK_OBJECT) {
+	        worksheet = getWorksheet(messages, webContext);
+    	}
+    	synchronized (worksheet) {
+	        WorksheetRow worksheetRow = getWorksheetRow(worksheet, webContext);
+	
+	        WorksheetColumn worksheetColumn = getWorksheetColumn(worksheetRow, webContext);
+	        columnStatus = validateWorksheet(worksheet, worksheetRow, worksheetColumn, webContext.getParameter(ERROR_MESSAGE));
+	
+	        // for distributed deployment (e.g. GAE)
+	        getWorksheetState(webContext).persistWorksheet(worksheet);
+    	}
 
         return columnStatus;
     }
